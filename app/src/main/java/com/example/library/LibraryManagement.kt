@@ -8,74 +8,44 @@ fun main() {
         Disk("DVD", "Человек-паук", 56674, "Да"),
         Disk("CD", "Звёздные войны I-VI", 56678, "Да"),
         Disk("DVD", "Чужой", 34900, "Нет"),
-        Newspaper(53, "Новости Москвы", 78352, "Нет"),
-        Newspaper(3, "События в мире звёзд", 24233, "Нет"),
-        Newspaper(21, "Главное за неделю", 75409, "Да")
+        Newspaper(53, "Новости Москвы", 78352, "Сентябрь", "Нет"),
+        Newspaper(3, "События в мире звёзд", 24233, "Декабрь", "Нет"),
+        Newspaper(21, "Главное за неделю", 75409, "Июнь", "Да")
     )
 
     val library = Library(list)
+    val manager = Manager()
+    val bookShop = BookShop()
+    val newspaperShop = NewspaperShop()
+    val diskShop = DiskShop()
+
+    val libraryUsage = LibraryUsage(library)
+    val managerUsage = ManagerUsage(library, manager, bookShop, newspaperShop, diskShop)
+    val digitizationRoomUsage = DigitizationRoomUsage(library)
 
     while (true) {
         println(
             """
-                -----------------------------
-                1. Показать книги
-                2. Показать газеты
-                3. Показать диски
-                Что показать (введите номер):
+            -----------------------------
+            1. Управление менеджером
+            2. Библиотека
+            3. Оцифровать газету/книгу
             """.trimIndent()
         )
-        val itemsToShow: Int = readlnOrNull()?.toIntOrNull() ?: -1
-        if (itemsToShow in 0..3) {
-
-            library.showItems(itemsToShow)
-
-            println("Выберите с чем взаимодействовать (введите номер):")
-            val numberOfItem: Int = readlnOrNull()?.toIntOrNull() ?: -1
-            if (numberOfItem == 0) continue
-            else {
-                try {
-                    library.run {
-                        when (itemsToShow) {
-                            1 -> interactWithItem(getBook(numberOfItem))
-                            2 -> interactWithItem(getNewspaper(numberOfItem))
-                            3 -> interactWithItem(getDisk(numberOfItem))
-                        }
-                    }
-                } catch (exception: IllegalStateException) {
-                    println("Невозможно выполнить действие: ${exception.message}")
-                    continue
-                } catch (exception: IndexOutOfBoundsException){
-                    println("Невозможно выполнить действие: такого номера не существует")
-                    continue
-                } catch (exception: IllegalArgumentException){
-                    println("Невозможно выполнить действие: ${exception.message}")
-                    continue
-                }
-            }
-
-        } else {
-            println("Вы ввели некорректное число")
+        val action: Int = readlnOrNull()?.toIntOrNull() ?: -1
+        when (action) {
+            1 -> managerUsage.start()
+            2 -> libraryUsage.start()
+            3 -> digitizationRoomUsage.start()
         }
-
     }
 }
 
 class Library(list: List<LibraryHoldable>) {
 
-    private val books = mutableListOf<Book>()
-    private val newspapers = mutableListOf<Newspaper>()
-    private val disks = mutableListOf<Disk>()
-
-    init {
-        list.forEach {
-            when (it) {
-                is Book -> books.add(it)
-                is Newspaper -> newspapers.add(it)
-                is Disk -> disks.add(it)
-            }
-        }
-    }
+    private val books = getNewList<Book>(list)
+    private val newspapers = getNewList<Newspaper>(list)
+    private val disks = getNewList<Disk>(list)
 
     fun interactWithItem(item: LibraryHoldable) {
         println(
@@ -88,7 +58,7 @@ class Library(list: List<LibraryHoldable>) {
             Что вы хотите сделать (введите номер):""".trimIndent()
         )
         val action: Int = readlnOrNull()?.toIntOrNull() ?: -1
-        require(action in 0..4) {"нет действия с таким номером"}
+        require(action in 0..4) { "нет действия с таким номером" }
         item.run {
             when (action) {
                 0 -> return
@@ -101,7 +71,7 @@ class Library(list: List<LibraryHoldable>) {
     }
 
     fun showItems(number: Int) {
-        println("0. Выйти в меню")
+        println("0. Выйти")
         when (number) {
             1 -> showBooks()
             2 -> showNewspapers()
@@ -109,15 +79,15 @@ class Library(list: List<LibraryHoldable>) {
         }
     }
 
-    fun getBook(number: Int): LibraryHoldable {
+    fun getBook(number: Int): Book {
         return books[number - 1]
     }
 
-    fun getNewspaper(number: Int): LibraryHoldable {
+    fun getNewspaper(number: Int): Newspaper {
         return newspapers[number - 1]
     }
 
-    fun getDisk(number: Int): LibraryHoldable {
+    fun getDisk(number: Int): Disk {
         return disks[number - 1]
     }
 
@@ -142,15 +112,37 @@ class Library(list: List<LibraryHoldable>) {
         }
     }
 
+    fun showNoDigit(): Int { // выводит все книги и газеты подряд; возвращает номер последней книги
+        var lastIndexOfBooks = 0
+        for (i in books.indices) {
+            print("${i + 1}. ")
+            books[i].showSummary()
+            lastIndexOfBooks = i + 1
+        }
+        for (i in newspapers.indices) {
+            print("${i + lastIndexOfBooks + 1}. ")
+            newspapers[i].showSummary()
+        }
+        return lastIndexOfBooks
+    }
+
+    fun add(item: LibraryHoldable) {
+        when (item) {
+            is Book -> books.add(item)
+            is Newspaper -> newspapers.add(item)
+            is Disk -> disks.add(item)
+        }
+    }
+
 }
 
 class Book(
-    private val name: String,
+    override val name: String,
     private val pageNumber: Int,
     private val author: String,
-    private val id: Int,
-    private var available: String
-) : LibraryHoldable {
+    override val id: Int,
+    override var available: String
+) : LibraryHoldable, NoDigital {
 
     override fun showSummary() {
         println("$name доступна: $available")
@@ -182,17 +174,18 @@ class Book(
 
 class Newspaper(
     private val release: Int,
-    private val name: String,
-    private val id: Int,
-    private var available: String
-) : LibraryHoldable {
+    override val name: String,
+    override val id: Int,
+    private val releaseMonth: String,
+    override var available: String
+) : LibraryHoldable, NoDigital {
 
     override fun showSummary() {
         println("$name доступна: $available")
     }
 
     override fun showDetailedInformation() {
-        println("выпуск: $release газеты $name с id: $id достуен: $available")
+        println("выпуск: $release (месяц: $releaseMonth) $name с id: $id доступен: $available")
     }
 
     override fun giveBack() {
@@ -202,7 +195,7 @@ class Newspaper(
     }
 
     override fun takeHome() {
-        error { "Газету нельзя взять домой" }
+        throw IllegalStateException("газету нельзя взять домой")
     }
 
     override fun takeAtHall() {
@@ -214,11 +207,11 @@ class Newspaper(
 }
 
 class Disk(
-    private val type: String,
-    private val name: String,
-    private val id: Int,
-    private var available: String
-) : LibraryHoldable {
+    override val type: String,
+    override val name: String,
+    override val id: Int,
+    override var available: String
+) : LibraryHoldable, Digital {
 
     override fun showSummary() {
         println("$name доступен: $available")
@@ -241,15 +234,27 @@ class Disk(
     }
 
     override fun takeAtHall() {
-        error { "Диск нельзя взять в читательный зал" }
+        throw IllegalStateException("диск нельзя взять в читательный зал")
     }
 
 }
 
 interface LibraryHoldable {
+    var available: String
     fun showSummary()
     fun showDetailedInformation()
     fun giveBack()
     fun takeHome()
     fun takeAtHall()
+}
+
+interface Digital {
+    val type: String
+    val name: String
+    val id: Int
+}
+
+interface NoDigital {
+    val name: String
+    val id: Int
 }
