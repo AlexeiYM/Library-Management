@@ -1,6 +1,6 @@
 package com.example.library
 
-class LibraryUsage(private val library: Library) { // Первое дз по ооп
+class LibraryUsage(private val library: Library) {
     fun start() {
         var itemsToShow = -1
         while (itemsToShow != 0) {
